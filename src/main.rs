@@ -35,19 +35,20 @@ fn main() -> io::Result<()> {
 
     let mut buffer = Vec::new();
 
+    // 1. Ajouter d'abord le dossier parent racine dans l'archive
+    zip.add_directory(folder_name, options)?;
+
     let walker = WalkDir::new(".").into_iter().filter_entry(|e| {
         let path = e.path();
 
-        // 1. Ignorer les dossiers cibles à la racine (depth == 1)
         if e.depth() == 1 && e.file_type().is_dir() {
             if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
                 if SKIP_FOLDERS.contains(&name) {
-                    return false; // Prune : WalkDir n'entrera PAS dans ce dossier
+                    return false;
                 }
             }
         }
 
-        // 2. Ignorer les fichiers spécifiques et extensions
         if e.file_type().is_file() {
             if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
                 if SKIP_FILES.contains(&name) {
@@ -68,19 +69,22 @@ fn main() -> io::Result<()> {
         let entry_path = entry.path();
         let relative_path = entry_path.strip_prefix(".").unwrap_or(entry_path);
 
-        // Ignorer l'archive ZIP en cours de création
-        if relative_path == zip_path {
+        if relative_path == zip_path || relative_path.as_os_str().is_empty() {
             continue;
         }
 
+        // 2. Construire le chemin interne avec le dossier parent (ex: mon_projet/lib/main.dart)
+        let zip_entry_path = Path::new(folder_name).join(relative_path);
+        let zip_entry_str = zip_entry_path.to_str().unwrap().replace('\\', "/");
+
         if entry_path.is_file() {
-            zip.start_file(relative_path.to_str().unwrap(), options)?;
+            zip.start_file(&zip_entry_str, options)?;
             let mut file = File::open(entry_path)?;
             file.read_to_end(&mut buffer)?;
             zip.write_all(&buffer)?;
             buffer.clear();
-        } else if !relative_path.as_os_str().is_empty() {
-            zip.add_directory(relative_path.to_str().unwrap(), options)?;
+        } else {
+            zip.add_directory(&zip_entry_str, options)?;
         }
     }
 
