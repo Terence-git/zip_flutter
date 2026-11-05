@@ -16,6 +16,7 @@ OutputBaseFilename=zipf_setup
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
+ChangesEnvironment=yes
 
 [Files]
 ; Indique le chemin vers ton fichier .exe compilé en release
