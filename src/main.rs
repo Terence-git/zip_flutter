@@ -2,7 +2,7 @@ use chrono::Local;
 use std::{
     env,
     fs::File,
-    io::{self, Read, Write},
+    io::{self, BufWriter},
     path::Path,
 };
 use walkdir::WalkDir;
@@ -27,16 +27,19 @@ fn main() -> io::Result<()> {
     let zip_path = Path::new(&nom_zip);
 
     let zip_file = File::create(zip_path)?;
-    let mut zip = ZipWriter::new(zip_file);
+    let mut zip = ZipWriter::new(BufWriter::new(zip_file));
 
-    let options = SimpleFileOptions::default()
+    let file_options = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o644);
+
+    let dir_options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o755);
 
-    let mut buffer = Vec::new();
+    zip.add_directory(folder_name, dir_options)?;
 
-    // 1. Ajouter d'abord le dossier parent racine dans l'archive
-    zip.add_directory(folder_name, options)?;
+    let mut zip_entry_str = String::with_capacity(256);
 
     let walker = WalkDir::new(".").into_iter().filter_entry(|e| {
         let path = e.path();
@@ -72,24 +75,23 @@ fn main() -> io::Result<()> {
         if relative_path == zip_path || relative_path.as_os_str().is_empty() {
             continue;
         }
+        zip_entry_str.clear();
+        zip_entry_str.push_str(folder_name);
+        for component in relative_path.components() {
+            zip_entry_str.push('/');
+            zip_entry_str.push_str(&component.as_os_str().to_string_lossy());
+        }
 
-        // 2. Construire le chemin interne avec le dossier parent (ex: mon_projet/lib/main.dart)
-        let zip_entry_path = Path::new(folder_name).join(relative_path);
-        let zip_entry_str = zip_entry_path.to_str().unwrap().replace('\\', "/");
-
-        if entry_path.is_file() {
-            zip.start_file(&zip_entry_str, options)?;
+        if entry.file_type().is_file() {
+            zip.start_file(&zip_entry_str, file_options)?;
             let mut file = File::open(entry_path)?;
-            file.read_to_end(&mut buffer)?;
-            zip.write_all(&buffer)?;
-            buffer.clear();
-        } else {
-            zip.add_directory(&zip_entry_str, options)?;
+            io::copy(&mut file, &mut zip)?;
+        } else if entry.file_type().is_dir() {
+            zip.add_directory(&zip_entry_str, dir_options)?;
         }
     }
 
     zip.finish()?;
-
     println!("Successfully created archive: {}", nom_zip);
     Ok(())
 }
