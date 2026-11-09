@@ -8,14 +8,16 @@ use std::{
 use walkdir::WalkDir;
 use zip::{write::SimpleFileOptions, ZipWriter};
 
+// liste des exclusions du fichier build
 const SKIP_EXTENSIONS: &[&str] = &["iml", "log"];
 const SKIP_FILES: &[&str] = &[".gitignore"];
 const SKIP_FOLDERS: &[&str] = &[
     "build", ".dart_tool", ".git", ".idea", ".vscode", 
     "android", "ios", "web", "linux", "macos", "windows"
 ];
-
+// Zip le dossier courant
 fn main() -> io::Result<()> {
+    // nom de l'archive zip
     let current_dir = env::current_dir()?;
     let folder_name = current_dir
         .file_name()
@@ -26,9 +28,11 @@ fn main() -> io::Result<()> {
     let nom_zip = format!("{}_remise_{}.zip", folder_name, timestamp);
     let zip_path = Path::new(&nom_zip);
 
+    // initialisation du script Zip
     let zip_file = File::create(zip_path)?;
     let mut zip = ZipWriter::new(BufWriter::new(zip_file));
 
+    // confirmation des permissions UNIX pour lecture et écriture
     let file_options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o644);
@@ -37,14 +41,18 @@ fn main() -> io::Result<()> {
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o755);
 
+    // création du fichier zip a la racie
+    // ! temporaire !    
     zip.add_directory(folder_name, dir_options)?;
 
     let mut zip_entry_str = String::with_capacity(256);
 
+    // traitement de l'arborescence et filtrage
     let walker = WalkDir::new(".").into_iter().filter_entry(|e| {
         let path = e.path();
 
-        if e.depth() == 1 && e.file_type().is_dir() {
+        // on exclu les dossier / fichier non désiré
+        if e.file_type().is_dir() {
             if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
                 if SKIP_FOLDERS.contains(&name) {
                     return false;
