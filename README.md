@@ -21,5 +21,5 @@ Dans votre dossier courants, tapez directement zipf pour créer l'archive.
 ```cmd
 zipf
 ```
-Example : 
+Exemple : 
 ![Project Screenshot](screenshot.png)
