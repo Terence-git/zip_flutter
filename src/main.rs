@@ -31,7 +31,6 @@ const SKIP_PATHS: &[&str] = &[
 ];
 
 const SKIP_FILES: &[&str] = &[
-    ".gitignore",
     ".flutter-plugins",
     ".flutter-plugins-dependencies",
     ".packages",
