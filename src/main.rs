@@ -6,15 +6,40 @@ use std::{
     path::Path,
 };
 use walkdir::WalkDir;
-use zip::{write::SimpleFileOptions, ZipWriter};
+use zip::{ZipWriter, write::SimpleFileOptions};
 
 // liste des exclusions du fichier build
-const SKIP_EXTENSIONS: &[&str] = &["iml", "log"];
-const SKIP_FILES: &[&str] = &[".gitignore"];
-const SKIP_FOLDERS: &[&str] = &[
-    "build", ".dart_tool", ".git", ".idea", ".vscode", 
-    "android", "ios", "web", "linux", "macos", "windows"
+const SKIP_PATHS: &[&str] = &[
+    "build",
+    ".dart_tool",
+    ".git",
+    ".idea",
+    ".vscode",
+    ".pub-cache",
+    ".pub",
+    "ios",
+    "web",
+    "linux",
+    "macos",
+    "windows",
+    "android/.gradle",
+    "android/build",
+    "android/app/build",
+    "android/app/.cxx",
+    "android/.idea",
+    "android/captures",
 ];
+
+const SKIP_FILES: &[&str] = &[
+    ".gitignore",
+    ".flutter-plugins",
+    ".flutter-plugins-dependencies",
+    ".packages",
+    "android/local.properties",
+    "android/key.properties",
+];
+
+const SKIP_EXTENSIONS: &[&str] = &["iml", "log", "DS_Store", "jks", "keystore"];
 // Zip le dossier courant
 fn main() -> io::Result<()> {
     // nom de l'archive zip
@@ -41,8 +66,8 @@ fn main() -> io::Result<()> {
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o755);
 
-    // création du fichier zip a la racie
-    // ! temporaire !    
+    // création du fichier zip a la racine
+    // ! temporaire !
     zip.add_directory(folder_name, dir_options)?;
 
     let mut zip_entry_str = String::with_capacity(256);
@@ -50,22 +75,25 @@ fn main() -> io::Result<()> {
     // traitement de l'arborescence et filtrage
     let walker = WalkDir::new(".").into_iter().filter_entry(|e| {
         let path = e.path();
+        let relative = path.strip_prefix(".").unwrap_or(path);
 
-        // on exclu les dossier / fichier non désiré
+        let relative_str = relative.to_string_lossy().replace('\\', "/");
+
+        // Exclusion des dossiers précis
         if e.file_type().is_dir() {
-            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-                if SKIP_FOLDERS.contains(&name) {
+            for folder in SKIP_PATHS {
+                if relative_str == *folder {
                     return false;
                 }
             }
         }
 
+        // Exclusion des fichiers précis
         if e.file_type().is_file() {
-            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-                if SKIP_FILES.contains(&name) {
-                    return false;
-                }
+            if SKIP_FILES.contains(&relative_str.as_ref()) {
+                return false;
             }
+
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
                 if SKIP_EXTENSIONS.contains(&ext) {
                     return false;
