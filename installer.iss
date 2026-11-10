@@ -1,5 +1,5 @@
 #define MyAppName "zipf"
-#define MyAppVersion "1.1"
+#define MyAppVersion "1.2"
 #define MyAppPublisher "Térence Martinant"
 #define MyAppExeName "zipf.exe"
 
