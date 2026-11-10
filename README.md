@@ -23,3 +23,6 @@ zipf
 ```
 Exemple : 
 ![Project Screenshot](screenshot.png)
+
+Résultat :
+![Project Screenshot](screenshot2.png)
