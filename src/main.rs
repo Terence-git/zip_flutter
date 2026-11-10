@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 use walkdir::WalkDir;
-use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
+use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 const SKIP_PATHS: &[&str] = &[
     "build",
@@ -38,10 +38,31 @@ const SKIP_FILES: &[&str] = &[
     "android/key.properties",
 ];
 
-const SKIP_EXTENSIONS: &[&str] = &["iml", "log", "jks", "keystore"];
+const SKIP_EXTENSIONS: &[&str] = &["iml", "log", "jks", "keystore", "DS_Store"];
+
+fn verifier_projet_flutter(projet_dir: &Path) -> bool {
+    let pubspec = projet_dir.join("pubspec.yaml");
+    let lib = projet_dir.join("lib");
+
+    if !pubspec.is_file() {
+        eprintln!("Erreur : pubspec.yaml introuvable.");
+        return false;
+    }
+
+    if !lib.is_dir() {
+        eprintln!("Erreur : dossier lib/ introuvable.");
+        return false;
+    }
+
+    println!("Projet Flutter détecté");
+    true
+}
 
 fn main() -> io::Result<()> {
     let current_dir = env::current_dir()?;
+        if !verifier_projet_flutter(&current_dir) {
+        std::process::exit(1);
+    }
     let folder_name = current_dir
         .file_name()
         .and_then(|n| n.to_str())
@@ -52,7 +73,8 @@ fn main() -> io::Result<()> {
     let zip_path = Path::new(&nom_zip);
 
     let options = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Deflated);
+        .compression_method(CompressionMethod::Deflated)
+        .compression_level(Some(9));
 
     let zip_file = File::create(zip_path)?;
     let mut zip = ZipWriter::new(BufWriter::new(zip_file));
@@ -61,7 +83,7 @@ fn main() -> io::Result<()> {
 
     let walker = WalkDir::new(".").into_iter().filter_entry(|e| {
         let path = e.path();
-        
+
         if path == zip_path {
             return false;
         }
